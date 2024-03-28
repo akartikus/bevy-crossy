@@ -38,7 +38,12 @@ fn setup(
                 layout: texture_atlas_layout.clone(), // Clone the handle for reuse
                 index: 24, // Assuming this index is for the player sprite
             },
-            transform: Transform::from_scale(Vec3::splat(5.0)),
+            transform: {
+                let mut transform = Transform::from_scale(Vec3::splat(5.0));
+                transform.translation.z = 10.0;
+                transform.translation.y = 32.0 * 5.0;
+                transform
+            },
             ..default()
         })
         .insert(Player);
