@@ -28,6 +28,7 @@ fn main() {
         )
         .add_plugins(MovementPlugin)
         .add_systems(Startup, setup)
+        .add_systems(Update, obstacle_lifetime)
         .run();
 }
 
@@ -76,8 +77,8 @@ fn setup(
         (27 * 17) + 16,
     ];
 
-    // Spawn a parent entity for the obstacle tiles
-    let parent_entity = commands
+    // Spawn root for the obstacle tiles
+    let obsctacle_entity = commands
         .spawn((
             SpatialBundle {
                 transform: Transform {
@@ -92,7 +93,7 @@ fn setup(
         .id();
 
     for (i, &tile_index) in tile_obstacle_indices.iter().enumerate() {
-        commands.entity(parent_entity).with_children(|parent| {
+        commands.entity(obsctacle_entity).with_children(|parent| {
             parent.spawn(SpriteSheetBundle {
                 texture: texture.clone(), // Reuse the loaded texture
                 atlas: TextureAtlas {
@@ -114,8 +115,21 @@ fn calculate_square_corners(center_distance: f32) -> Vec<Vec3> {
     let half_size = center_distance / 2.0; // Half the size of the square's side
     vec![
         Vec3::new(-half_size, half_size, 0.0),  // Top-Left corner
-        Vec3::new(half_size, half_size, 0.0),   // Top-Right corner
+        Vec3::new(half_size, half_size, 0.0),   // To>p-Right corner
         Vec3::new(-half_size, -half_size, 0.0), // Bottom-Left corner
         Vec3::new(half_size, -half_size, 0.0),  // Bottom-Right corner
     ]
+}
+
+fn obstacle_lifetime(
+    mut commands: Commands,
+    mut obstacles: Query<(&Transform, Entity), With<Obstacle>>,
+) {
+    for (transform, entity) in &mut obstacles {
+        if transform.translation.x > WINDOW_WIDTH / 2. + 16. * 5. {
+            commands.entity(entity).despawn();
+
+            info!("Obstacle despwned");
+        }
+    }
 }
