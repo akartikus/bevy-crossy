@@ -1,4 +1,7 @@
 use bevy::{prelude::*, window::WindowResolution};
+use movement::MovementPlugin;
+
+mod movement;
 
 #[derive(Component)]
 struct Player;
@@ -23,8 +26,8 @@ fn main() {
                 })
                 .set(ImagePlugin::default_nearest()),
         )
+        .add_plugins(MovementPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (character_movement, obstacle_movement))
         .run();
 }
 
@@ -115,32 +118,4 @@ fn calculate_square_corners(center_distance: f32) -> Vec<Vec3> {
         Vec3::new(-half_size, -half_size, 0.0), // Bottom-Left corner
         Vec3::new(half_size, -half_size, 0.0),  // Bottom-Right corner
     ]
-}
-
-fn character_movement(
-    mut characters: Query<&mut Transform, With<Player>>,
-    input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-) {
-    for mut transform in &mut characters {
-        let movement_amount = 150.0 * time.delta_seconds();
-        if input.pressed(KeyCode::KeyW) {
-            transform.translation.y += movement_amount;
-        }
-        if input.pressed(KeyCode::KeyS) {
-            transform.translation.y -= movement_amount;
-        }
-        if input.pressed(KeyCode::KeyD) {
-            transform.translation.x += movement_amount;
-        }
-        if input.pressed(KeyCode::KeyA) {
-            transform.translation.x -= movement_amount;
-        }
-    }
-}
-
-fn obstacle_movement(mut obstacles: Query<&mut Transform, With<Obstacle>>, time: Res<Time>) {
-    for mut transform in &mut obstacles {
-        transform.translation.x += 150.0 * time.delta_seconds();
-    }
 }
