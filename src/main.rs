@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 
 #[derive(Component)]
 struct Player;
@@ -6,11 +6,25 @@ struct Player;
 #[derive(Component)]
 struct Obstacle;
 
+const WINDOW_WIDTH: f32 = 700.;
+const WINDOW_HEIGHT: f32 = 500.;
+
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        resolution: WindowResolution::new(WINDOW_WIDTH, WINDOW_HEIGHT),
+                        title: String::from("Bevy crossy road"),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(ImagePlugin::default_nearest()),
+        )
         .add_systems(Startup, setup)
-        .add_systems(Update, character_movement)
+        .add_systems(Update, (character_movement, obstacle_movement))
         .run();
 }
 
@@ -39,7 +53,7 @@ fn setup(
                 index: 24, // Assuming this index is for the player sprite
             },
             transform: {
-                let mut transform = Transform::from_scale(Vec3::splat(5.0));
+                let mut transform = Transform::from_scale(Vec3::splat(4.0));
                 transform.translation.z = 10.0;
                 transform.translation.y = 32.0 * 5.0;
                 transform
@@ -61,7 +75,17 @@ fn setup(
 
     // Spawn a parent entity for the obstacle tiles
     let parent_entity = commands
-        .spawn((SpatialBundle::default(), Name::new("Obstacle")))
+        .spawn((
+            SpatialBundle {
+                transform: Transform {
+                    translation: Vec3::new(-WINDOW_WIDTH / 2., 0.0, 0.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            Name::new("Obstacle"),
+            Obstacle,
+        ))
         .id();
 
     for (i, &tile_index) in tile_obstacle_indices.iter().enumerate() {
@@ -73,8 +97,8 @@ fn setup(
                     index: tile_index,
                 },
                 transform: Transform {
-                    translation: tile_obstacle_positions[i] * Vec3::splat(5.0),
-                    scale: Vec3::splat(5.0),
+                    translation: tile_obstacle_positions[i] * Vec3::splat(4.0),
+                    scale: Vec3::splat(4.0),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -112,5 +136,11 @@ fn character_movement(
         if input.pressed(KeyCode::KeyA) {
             transform.translation.x -= movement_amount;
         }
+    }
+}
+
+fn obstacle_movement(mut obstacles: Query<&mut Transform, With<Obstacle>>, time: Res<Time>) {
+    for mut transform in &mut obstacles {
+        transform.translation.x += 150.0 * time.delta_seconds();
     }
 }
