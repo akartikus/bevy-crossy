@@ -1,7 +1,9 @@
 use bevy::{prelude::*, window::WindowResolution};
 use movement::MovementPlugin;
+use obstacles::ObstaclesPlugin;
 
 mod movement;
+mod obstacles;
 
 #[derive(Component)]
 struct Player;
@@ -27,8 +29,8 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
         )
         .add_plugins(MovementPlugin)
+        .add_plugins(ObstaclesPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, obstacle_lifetime)
         .run();
 }
 
@@ -65,71 +67,4 @@ fn setup(
             ..default()
         })
         .insert(Player);
-
-    // Define positions for the tiles to create obstacles
-    let tile_obstacle_positions = calculate_square_corners(16.0);
-
-    // Indices for the tiles used as obstacles
-    let tile_obstacle_indices = vec![
-        (27 * 16) + 15,
-        (27 * 16) + 16,
-        (27 * 17) + 15,
-        (27 * 17) + 16,
-    ];
-
-    // Spawn root for the obstacle tiles
-    let obsctacle_entity = commands
-        .spawn((
-            SpatialBundle {
-                transform: Transform {
-                    translation: Vec3::new(-WINDOW_WIDTH / 2., 0.0, 0.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            Name::new("Obstacle"),
-            Obstacle,
-        ))
-        .id();
-
-    for (i, &tile_index) in tile_obstacle_indices.iter().enumerate() {
-        commands.entity(obsctacle_entity).with_children(|parent| {
-            parent.spawn(SpriteSheetBundle {
-                texture: texture.clone(), // Reuse the loaded texture
-                atlas: TextureAtlas {
-                    layout: texture_atlas_layout.clone(), // Reuse the atlas layout
-                    index: tile_index,
-                },
-                transform: Transform {
-                    translation: tile_obstacle_positions[i] * Vec3::splat(4.0),
-                    scale: Vec3::splat(4.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            });
-        });
-    }
-}
-
-fn calculate_square_corners(center_distance: f32) -> Vec<Vec3> {
-    let half_size = center_distance / 2.0; // Half the size of the square's side
-    vec![
-        Vec3::new(-half_size, half_size, 0.0),  // Top-Left corner
-        Vec3::new(half_size, half_size, 0.0),   // To>p-Right corner
-        Vec3::new(-half_size, -half_size, 0.0), // Bottom-Left corner
-        Vec3::new(half_size, -half_size, 0.0),  // Bottom-Right corner
-    ]
-}
-
-fn obstacle_lifetime(
-    mut commands: Commands,
-    mut obstacles: Query<(&Transform, Entity), With<Obstacle>>,
-) {
-    for (transform, entity) in &mut obstacles {
-        if transform.translation.x > WINDOW_WIDTH / 2. + 16. * 5. {
-            commands.entity(entity).despawn();
-
-            info!("Obstacle despwned");
-        }
-    }
 }
