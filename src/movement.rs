@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{Obstacle, Player};
+use crate::{obstacles::Obstacle, Player};
 pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
@@ -30,8 +30,11 @@ fn character_movement(
         }
     }
 }
-fn obstacle_movement(mut obstacles: Query<&mut Transform, With<Obstacle>>, time: Res<Time>) {
-    for mut transform in &mut obstacles {
-        transform.translation.x += 150.0 * time.delta_seconds();
+fn obstacle_movement(
+    mut obstacles: Query<(&mut Transform, &Obstacle), With<Obstacle>>,
+    time: Res<Time>,
+) {
+    for (mut transform, obstacle) in &mut obstacles {
+        transform.translation.x += obstacle.direction.x * 150.0 * time.delta_seconds();
     }
 }

@@ -8,11 +8,9 @@ mod obstacles;
 #[derive(Component)]
 struct Player;
 
-#[derive(Component)]
-struct Obstacle;
-
 const WINDOW_WIDTH: f32 = 700.;
 const WINDOW_HEIGHT: f32 = 500.;
+const SCALE: f32 = 2.;
 
 fn main() {
     App::new()
@@ -59,7 +57,7 @@ fn setup(
                 index: 24, // Assuming this index is for the player sprite
             },
             transform: {
-                let mut transform = Transform::from_scale(Vec3::splat(4.0));
+                let mut transform = Transform::from_scale(Vec3::splat(SCALE));
                 transform.translation.z = 10.0;
                 transform.translation.y = 32.0 * 5.0;
                 transform

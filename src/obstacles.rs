@@ -1,7 +1,12 @@
 use bevy::prelude::*;
+use rand::prelude::*;
 
-use crate::{Obstacle, WINDOW_WIDTH};
+use crate::{SCALE, WINDOW_WIDTH};
 
+#[derive(Component)]
+pub struct Obstacle {
+    pub direction: Vec3,
+}
 #[derive(Component)]
 pub struct ObstacleRoot {
     pub frequency: Timer,
@@ -18,7 +23,7 @@ impl Plugin for ObstaclesPlugin {
 
 fn setup_obstacle(mut commands: Commands) {
     commands.spawn(ObstacleRoot {
-        frequency: Timer::from_seconds(2., TimerMode::Repeating),
+        frequency: Timer::from_seconds(1., TimerMode::Repeating),
     });
 }
 
@@ -54,19 +59,22 @@ fn spawn_obstacles(
     for mut obstacle in &mut obstacle_root {
         obstacle.frequency.tick(time.delta());
         if obstacle.frequency.finished() {
-            info!("Finish");
+            // let tranmslation = rando
             // Spawn root for the obstacle tiles
+            let direction = randomize_direction();
+            let translation = randomize_translation(direction);
+            info!("{}", translation);
             let obsctacle_entity = commands
                 .spawn((
                     SpatialBundle {
                         transform: Transform {
-                            translation: Vec3::new(-WINDOW_WIDTH / 2., 0.0, 0.0),
+                            translation,
                             ..Default::default()
                         },
                         ..Default::default()
                     },
                     Name::new("Obstacle"),
-                    Obstacle,
+                    Obstacle { direction },
                 ))
                 .id();
 
@@ -79,8 +87,8 @@ fn spawn_obstacles(
                             index: tile_index,
                         },
                         transform: Transform {
-                            translation: tile_obstacle_positions[i] * Vec3::splat(4.0),
-                            scale: Vec3::splat(4.0),
+                            translation: tile_obstacle_positions[i] * Vec3::splat(SCALE),
+                            scale: Vec3::splat(SCALE),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -103,11 +111,37 @@ fn despawn_obstacles(
     mut commands: Commands,
     mut obstacles: Query<(&Transform, Entity), With<Obstacle>>,
 ) {
-    for (transform, entity) in &mut obstacles {
-        if transform.translation.x > WINDOW_WIDTH / 2. + 16. * 5. {
-            commands.entity(entity).despawn();
+    let right_boundary = WINDOW_WIDTH / 2. + 16.0 * SCALE;
+    let left_boundary = -WINDOW_WIDTH / 2. - 16.0 * SCALE;
 
-            info!("Obstacle despwned");
+    for (transform, entity) in &mut obstacles {
+        let x_position = transform.translation.x;
+        if x_position > right_boundary || x_position < left_boundary {
+            commands.entity(entity).despawn();
         }
     }
+}
+
+fn randomize_translation(direction: Vec3) -> Vec3 {
+    let mut y = 75.;
+    let mut z = 0.;
+    if direction.x < 0. {
+        z = 1.;
+        y = y + 16. * SCALE; // obstacle size + margin
+    }
+    info!(y);
+    let possible_positions = vec![
+        Vec3::new(-WINDOW_WIDTH / 2., y, -z),
+        Vec3::new(-WINDOW_WIDTH / 2., -y, z),
+    ];
+    let mut rng = rand::thread_rng();
+    let index = rng.gen_range(0..possible_positions.len());
+    return possible_positions[index] * direction;
+}
+
+fn randomize_direction() -> Vec3 {
+    let possible_directions = vec![Vec3::new(-1., 1., 1.), Vec3::new(1., 1., 1.)];
+    let mut rng = rand::thread_rng();
+    let index = rng.gen_range(0..possible_directions.len());
+    return possible_directions[index];
 }
