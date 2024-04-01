@@ -63,7 +63,6 @@ fn spawn_obstacles(
             // Spawn root for the obstacle tiles
             let direction = randomize_direction();
             let translation = randomize_translation(direction);
-            info!("{}", translation);
             let obsctacle_entity = commands
                 .spawn((
                     SpatialBundle {
@@ -113,11 +112,10 @@ fn despawn_obstacles(
 ) {
     let right_boundary = WINDOW_WIDTH / 2. + 16.0 * SCALE;
     let left_boundary = -WINDOW_WIDTH / 2. - 16.0 * SCALE;
-
     for (transform, entity) in &mut obstacles {
         let x_position = transform.translation.x;
         if x_position > right_boundary || x_position < left_boundary {
-            commands.entity(entity).despawn();
+            commands.entity(entity).despawn_recursive();
         }
     }
 }
@@ -129,7 +127,6 @@ fn randomize_translation(direction: Vec3) -> Vec3 {
         z = 1.;
         y = y + 16. * SCALE; // obstacle size + margin
     }
-    info!(y);
     let possible_positions = vec![
         Vec3::new(-WINDOW_WIDTH / 2., y, -z),
         Vec3::new(-WINDOW_WIDTH / 2., -y, z),

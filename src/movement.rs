@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{obstacles::Obstacle, Player};
+use crate::{obstacles::Obstacle, Player, WINDOW_HEIGHT, WINDOW_WIDTH};
 pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
@@ -14,18 +14,18 @@ fn character_movement(
     input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
 ) {
+    let movement_amount = 150.0 * time.delta_seconds();
     for mut transform in &mut characters {
-        let movement_amount = 150.0 * time.delta_seconds();
-        if input.pressed(KeyCode::KeyW) {
+        if input.pressed(KeyCode::KeyW) && transform.translation.y < WINDOW_HEIGHT / 2. {
             transform.translation.y += movement_amount;
         }
-        if input.pressed(KeyCode::KeyS) {
+        if input.pressed(KeyCode::KeyS) && transform.translation.y > -WINDOW_HEIGHT / 2. {
             transform.translation.y -= movement_amount;
         }
-        if input.pressed(KeyCode::KeyD) {
+        if input.pressed(KeyCode::KeyD) && transform.translation.x < WINDOW_WIDTH / 2. {
             transform.translation.x += movement_amount;
         }
-        if input.pressed(KeyCode::KeyA) {
+        if input.pressed(KeyCode::KeyA) && transform.translation.x > -WINDOW_WIDTH / 2. {
             transform.translation.x -= movement_amount;
         }
     }
