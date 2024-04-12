@@ -1,4 +1,4 @@
-use bevy::{prelude::*, window::WindowResolution};
+use bevy::{math::bounding::*, prelude::*, window::WindowResolution};
 use movement::MovementPlugin;
 use obstacles::ObstaclesPlugin;
 
@@ -7,6 +7,24 @@ mod obstacles;
 
 #[derive(Component)]
 struct Player;
+
+#[derive(Bundle)]
+struct PlayerBundle {
+    sprite: SpriteSheetBundle,
+    player: Player,
+}
+
+#[derive(Component)]
+enum DesiredVolume {
+    Aabb,
+    Circle,
+}
+
+#[derive(Component, Debug)]
+enum CurrentVolume {
+    Aabb(Aabb2d),
+    Circle(BoundingCircle),
+}
 
 const WINDOW_WIDTH: f32 = 700.;
 const WINDOW_HEIGHT: f32 = 500.;
@@ -49,8 +67,8 @@ fn setup(
 
     commands.spawn(Camera2dBundle::default());
 
-    commands
-        .spawn(SpriteSheetBundle {
+    commands.spawn(PlayerBundle {
+        sprite: SpriteSheetBundle {
             texture: texture.clone(), // Use clone here to reuse the same texture handle
             atlas: TextureAtlas {
                 layout: texture_atlas_layout.clone(), // Clone the handle for reuse
@@ -59,10 +77,28 @@ fn setup(
             transform: {
                 let mut transform = Transform::from_scale(Vec3::splat(SCALE));
                 transform.translation.z = 10.0;
-                transform.translation.y = 32.0 * 5.0;
+                transform.translation.y = 32.0 * SCALE;
                 transform
             },
             ..default()
-        })
-        .insert(Player);
+        },
+        player: Player,
+    });
+
+    // fn draw_aabb_visualization(commands: &mut Commands, aabb: AABB) {
+    //     let shape = shapes::Rectangle {
+    //         extents: Vec2::new(aabb.max_x - aabb.min_x, aabb.max_y - aabb.min_y),
+    //         origin: shapes::RectangleOrigin::Center,
+    //     };
+
+    //     commands.spawn(GeometryBuilder::build_as(
+    //         &shape,
+    //         DrawMode::Stroke(StrokeMode::new(Color::RED, 2.0)),
+    //         Transform::from_xyz(
+    //             (aabb.max_x + aabb.min_x) / 2.0,
+    //             (aabb.max_y + aabb.min_y) / 2.0,
+    //             0.0,
+    //         ),
+    //     ));
+    // }
 }
