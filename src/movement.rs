@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 
-use crate::{obstacles::Obstacle, Player, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{
+    config::{OBSTACLE_SPEED, PLAYER_SPEED, WINDOW_HEIGHT, WINDOW_WIDTH},
+    obstacles::Obstacle,
+    Player,
+};
+
 pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
@@ -14,27 +19,35 @@ fn character_movement(
     input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
 ) {
-    let movement_amount = 150.0 * time.delta_seconds();
+    // On construit un vecteur de direction à partir des touches...
+    let mut direction = Vec2::ZERO;
+    if input.pressed(KeyCode::KeyW) {
+        direction.y += 1.;
+    }
+    if input.pressed(KeyCode::KeyS) {
+        direction.y -= 1.;
+    }
+    if input.pressed(KeyCode::KeyD) {
+        direction.x += 1.;
+    }
+    if input.pressed(KeyCode::KeyA) {
+        direction.x -= 1.;
+    }
+
+    // ... qu'on normalise (longueur 1) pour que la diagonale ne soit pas
+    // plus rapide. `normalize_or_zero` évite la division par 0 à l'arrêt.
+    let movement = direction.normalize_or_zero() * PLAYER_SPEED * time.delta_seconds();
+
     for mut transform in &mut characters {
-        if input.pressed(KeyCode::KeyW) && transform.translation.y < WINDOW_HEIGHT / 2. {
-            transform.translation.y += movement_amount;
-        }
-        if input.pressed(KeyCode::KeyS) && transform.translation.y > -WINDOW_HEIGHT / 2. {
-            transform.translation.y -= movement_amount;
-        }
-        if input.pressed(KeyCode::KeyD) && transform.translation.x < WINDOW_WIDTH / 2. {
-            transform.translation.x += movement_amount;
-        }
-        if input.pressed(KeyCode::KeyA) && transform.translation.x > -WINDOW_WIDTH / 2. {
-            transform.translation.x -= movement_amount;
-        }
+        transform.translation.x = (transform.translation.x + movement.x)
+            .clamp(-WINDOW_WIDTH / 2., WINDOW_WIDTH / 2.);
+        transform.translation.y = (transform.translation.y + movement.y)
+            .clamp(-WINDOW_HEIGHT / 2., WINDOW_HEIGHT / 2.);
     }
 }
-fn obstacle_movement(
-    mut obstacles: Query<(&mut Transform, &Obstacle), With<Obstacle>>,
-    time: Res<Time>,
-) {
+
+fn obstacle_movement(mut obstacles: Query<(&mut Transform, &Obstacle)>, time: Res<Time>) {
     for (mut transform, obstacle) in &mut obstacles {
-        transform.translation.x += obstacle.direction.x * 150.0 * time.delta_seconds();
+        transform.translation.x += obstacle.direction.x * OBSTACLE_SPEED * time.delta_seconds();
     }
 }
