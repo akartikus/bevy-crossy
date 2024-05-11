@@ -3,7 +3,9 @@ use rand::prelude::*;
 
 use crate::{
     assets::GameAssets,
-    config::{SCALE, SCALED_TILE, TILE_SIZE, WINDOW_WIDTH},
+    collision::Collider,
+    config::{OBSTACLE_HALF_SIZE, SCALE, SCALED_TILE, TILE_SIZE, WINDOW_WIDTH},
+    state::GameState,
 };
 
 #[derive(Component)]
@@ -30,7 +32,10 @@ pub struct ObstaclesPlugin;
 impl Plugin for ObstaclesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_obstacle)
-            .add_systems(Update, (spawn_obstacles, despawn_obstacles));
+            .add_systems(
+                Update,
+                (spawn_obstacles, despawn_obstacles).run_if(in_state(GameState::Playing)),
+            );
     }
 }
 
@@ -67,6 +72,9 @@ fn spawn_obstacles(
                 },
                 Name::new("Obstacle"),
                 Obstacle { direction },
+                Collider {
+                    half_size: OBSTACLE_HALF_SIZE,
+                },
             ))
             .with_children(|parent| {
                 for (corner, tile_index) in corners.iter().zip(OBSTACLE_TILES) {

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     config::{OBSTACLE_SPEED, PLAYER_SPEED, WINDOW_HEIGHT, WINDOW_WIDTH},
     obstacles::Obstacle,
+    state::GameState,
     Player,
 };
 
@@ -10,7 +11,11 @@ pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (character_movement, obstacle_movement));
+        // Le mouvement ne tourne que pendant la partie : en game over, tout est figé.
+        app.add_systems(
+            Update,
+            (character_movement, obstacle_movement).run_if(in_state(GameState::Playing)),
+        );
     }
 }
 

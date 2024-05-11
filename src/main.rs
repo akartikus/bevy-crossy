@@ -1,13 +1,19 @@
 use assets::{GameAssets, GameAssetsPlugin};
 use bevy::{prelude::*, window::WindowResolution};
-use config::{SCALE, WINDOW_HEIGHT, WINDOW_WIDTH};
+use collision::{Collider, CollisionPlugin};
+use config::{PLAYER_HALF_SIZE, PLAYER_START, SCALE, WINDOW_HEIGHT, WINDOW_WIDTH};
 use movement::MovementPlugin;
 use obstacles::ObstaclesPlugin;
+use score::ScorePlugin;
+use state::GameStatePlugin;
 
 mod assets;
+mod collision;
 mod config;
 mod movement;
 mod obstacles;
+mod score;
+mod state;
 
 #[derive(Component)]
 struct Player;
@@ -16,6 +22,7 @@ struct Player;
 struct PlayerBundle {
     sprite: SpriteSheetBundle,
     player: Player,
+    collider: Collider,
 }
 
 fn main() {
@@ -32,7 +39,14 @@ fn main() {
                 })
                 .set(ImagePlugin::default_nearest()),
         )
-        .add_plugins((GameAssetsPlugin, MovementPlugin, ObstaclesPlugin))
+        .add_plugins((
+            GameAssetsPlugin,
+            GameStatePlugin,
+            MovementPlugin,
+            ObstaclesPlugin,
+            CollisionPlugin,
+            ScorePlugin,
+        ))
         .add_systems(Startup, setup)
         .run();
 }
@@ -48,12 +62,15 @@ fn setup(mut commands: Commands, assets: Res<GameAssets>) {
                 index: 24, // index de la tuile du joueur dans l'atlas
             },
             transform: Transform {
-                translation: Vec3::new(0., 32. * SCALE, 10.),
+                translation: PLAYER_START,
                 scale: Vec3::splat(SCALE),
                 ..default()
             },
             ..default()
         },
         player: Player,
+        collider: Collider {
+            half_size: PLAYER_HALF_SIZE,
+        },
     });
 }
