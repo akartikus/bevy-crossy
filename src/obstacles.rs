@@ -1,22 +1,38 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use rand::prelude::*;
 
 use crate::{
     assets::GameAssets,
     collision::Collider,
-    config::{OBSTACLE_HALF_SIZE, SCALE, SCALED_TILE, TILE_SIZE, WINDOW_WIDTH},
+    config::{
+        lane_y, LANES, LANE_SPAWN_RANGE, LANE_SPEED_RANGE, OBSTACLE_HALF_SIZE, SCALE, SCALED_TILE,
+        TILE_SIZE, WINDOW_WIDTH,
+    },
     state::GameState,
 };
 
+/// Un obstacle en mouvement. `velocity` est signée : positive vers la droite,
+/// négative vers la gauche (en pixels par seconde).
 #[derive(Component)]
 pub struct Obstacle {
-    pub direction: Vec3,
+    pub velocity: f32,
 }
 
+/// Une voie de circulation : elle fait apparaître des obstacles à intervalle
+/// aléatoire, toujours dans le même sens et à la même vitesse.
 #[derive(Component)]
-pub struct ObstacleRoot {
-    pub frequency: Timer,
+pub struct Lane {
+    /// +1. vers la droite, -1. vers la gauche.
+    direction: f32,
+    speed: f32,
+    /// Chaque obstacle apparu tire un nouveau délai : le trafic est irrégulier.
+    spawn_timer: Timer,
 }
+
+/// Abscisse au-delà de laquelle un obstacle est entièrement hors de l'écran.
+const EDGE: f32 = WINDOW_WIDTH / 2. + SCALED_TILE;
 
 /// Indices (dans l'atlas) des 4 tuiles qui forment un obstacle, dans le même
 /// ordre que les coins renvoyés par `square_corners`.
@@ -31,36 +47,58 @@ pub struct ObstaclesPlugin;
 
 impl Plugin for ObstaclesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_obstacle)
-            .add_systems(
-                Update,
-                (spawn_obstacles, despawn_obstacles).run_if(in_state(GameState::Playing)),
-            );
+        app.add_systems(Startup, setup_lanes).add_systems(
+            Update,
+            (spawn_obstacles, despawn_obstacles).run_if(in_state(GameState::Playing)),
+        );
     }
 }
 
-fn setup_obstacle(mut commands: Commands) {
-    commands.spawn(ObstacleRoot {
-        frequency: Timer::from_seconds(1., TimerMode::Repeating),
-    });
+/// Crée les voies : une entité par voie, avec une direction alternée.
+fn setup_lanes(mut commands: Commands) {
+    let mut rng = rand::thread_rng();
+    for lane in 0..LANES {
+        // Voies paires vers la droite, impaires vers la gauche.
+        let direction = if lane % 2 == 0 { 1. } else { -1. };
+        commands.spawn((
+            Name::new(format!("Lane {lane}")),
+            // Un `Transform` seul suffit à stocker la hauteur de la voie.
+            Transform::from_xyz(0., lane_y(lane), 0.),
+            Lane {
+                direction,
+                speed: rng.gen_range(LANE_SPEED_RANGE.0..LANE_SPEED_RANGE.1),
+                spawn_timer: Timer::from_seconds(random_delay(&mut rng), TimerMode::Once),
+            },
+        ));
+    }
+}
+
+fn random_delay(rng: &mut impl Rng) -> f32 {
+    rng.gen_range(LANE_SPAWN_RANGE.0..LANE_SPAWN_RANGE.1)
 }
 
 fn spawn_obstacles(
     mut commands: Commands,
-    mut obstacle_root: Query<&mut ObstacleRoot>,
+    mut lanes: Query<(&mut Lane, &Transform)>,
     time: Res<Time>,
     assets: Res<GameAssets>,
 ) {
     let corners = square_corners(TILE_SIZE);
+    let mut rng = rand::thread_rng();
 
-    for mut root in &mut obstacle_root {
-        root.frequency.tick(time.delta());
-        if !root.frequency.finished() {
+    for (mut lane, lane_transform) in &mut lanes {
+        lane.spawn_timer.tick(time.delta());
+        if !lane.spawn_timer.finished() {
             continue;
         }
 
-        let direction = random_direction();
-        let translation = random_translation(direction);
+        // Prochain obstacle : nouveau délai aléatoire.
+        let delay = Duration::from_secs_f32(random_delay(&mut rng));
+        lane.spawn_timer.set_duration(delay);
+        lane.spawn_timer.reset();
+
+        // L'obstacle apparaît juste hors de l'écran, côté opposé à sa direction.
+        let translation = Vec3::new(-lane.direction * EDGE, lane_transform.translation.y, 0.);
 
         // `with_children` permet de créer les 4 tuiles enfants en un seul bloc.
         // Leur transform est relatif au parent : déplacer le parent les déplace tous.
@@ -71,7 +109,9 @@ fn spawn_obstacles(
                     ..default()
                 },
                 Name::new("Obstacle"),
-                Obstacle { direction },
+                Obstacle {
+                    velocity: lane.direction * lane.speed,
+                },
                 Collider {
                     half_size: OBSTACLE_HALF_SIZE,
                 },
@@ -108,35 +148,13 @@ fn square_corners(tile_size: f32) -> [Vec3; 4] {
     ]
 }
 
-fn despawn_obstacles(mut commands: Commands, obstacles: Query<(&Transform, Entity), With<Obstacle>>) {
-    let limit = WINDOW_WIDTH / 2. + SCALED_TILE;
-    for (transform, entity) in &obstacles {
-        if transform.translation.x.abs() > limit {
+/// Supprime les obstacles sortis de l'écran *du côté où ils vont*
+/// (sinon un obstacle tout juste apparu serait supprimé immédiatement).
+fn despawn_obstacles(mut commands: Commands, obstacles: Query<(&Transform, &Obstacle, Entity)>) {
+    for (transform, obstacle, entity) in &obstacles {
+        if transform.translation.x * obstacle.velocity.signum() > EDGE {
             // `despawn_recursive` supprime aussi les tuiles enfants.
             commands.entity(entity).despawn_recursive();
         }
     }
-}
-
-fn random_translation(direction: Vec3) -> Vec3 {
-    let mut y = 75.;
-    let mut z = 0.;
-    if direction.x < 0. {
-        z = 1.;
-        y += SCALED_TILE; // taille de l'obstacle + marge
-    }
-    let possible_positions = [
-        Vec3::new(-WINDOW_WIDTH / 2., y, -z),
-        Vec3::new(-WINDOW_WIDTH / 2., -y, z),
-    ];
-    let mut rng = rand::thread_rng();
-    // Multiplier par `direction` inverse le x : un obstacle qui va vers la
-    // gauche apparaît donc du côté droit.
-    *possible_positions.choose(&mut rng).unwrap() * direction
-}
-
-fn random_direction() -> Vec3 {
-    let possible_directions = [Vec3::new(-1., 1., 1.), Vec3::new(1., 1., 1.)];
-    let mut rng = rand::thread_rng();
-    *possible_directions.choose(&mut rng).unwrap()
 }

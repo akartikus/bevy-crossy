@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    config::{OBSTACLE_SPEED, PLAYER_SPEED, WINDOW_HEIGHT, WINDOW_WIDTH},
+    config::{PLAYER_SPEED, WINDOW_HEIGHT, WINDOW_WIDTH},
     obstacles::Obstacle,
     state::GameState,
     Player,
@@ -53,6 +53,6 @@ fn character_movement(
 
 fn obstacle_movement(mut obstacles: Query<(&mut Transform, &Obstacle)>, time: Res<Time>) {
     for (mut transform, obstacle) in &mut obstacles {
-        transform.translation.x += obstacle.direction.x * OBSTACLE_SPEED * time.delta_seconds();
+        transform.translation.x += obstacle.velocity * time.delta_seconds();
     }
 }
