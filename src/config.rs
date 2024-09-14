@@ -52,5 +52,7 @@ pub const PLAYER_HALF_SIZE: Vec2 = Vec2::splat(6. * SCALE);
 /// Un obstacle fait 2x2 tuiles : 32 px de côté avant agrandissement, donc 16 px de demi-côté.
 pub const OBSTACLE_HALF_SIZE: Vec2 = Vec2::splat(16. * SCALE);
 
-/// Vitesse du joueur, en pixels par seconde.
-pub const PLAYER_SPEED: f32 = 150.;
+/// Durée d'un saut d'une case, en secondes.
+pub const HOP_DURATION: f32 = 0.12;
+/// Nombre de colonnes de part et d'autre de la colonne centrale (21 colonnes au total).
+pub const GRID_HALF_COLS: i32 = 10;

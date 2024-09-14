@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{config::PLAYER_START, obstacles::Obstacle, score::Score, Player};
+use crate::{config::PLAYER_START, movement::Hop, obstacles::Obstacle, score::Score, Player};
 
 /// Les états du jeu. Bevy garde l'état courant dans une ressource et permet de
 /// n'exécuter certains systèmes que dans un état donné (`run_if(in_state(..))`).
@@ -73,13 +73,15 @@ fn restart_on_key(input: Res<ButtonInput<KeyCode>>, mut next_state: ResMut<NextS
 fn reset_game(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    mut player: Query<&mut Transform, With<Player>>,
+    mut player: Query<(Entity, &mut Transform), With<Player>>,
     obstacles: Query<Entity, With<Obstacle>>,
     ui: Query<Entity, With<GameOverUi>>,
 ) {
     score.0 = 0;
-    for mut transform in &mut player {
+    for (entity, mut transform) in &mut player {
         transform.translation = PLAYER_START;
+        // Annule un éventuel saut interrompu par le game over.
+        commands.entity(entity).remove::<Hop>();
     }
     for entity in &obstacles {
         commands.entity(entity).despawn_recursive();

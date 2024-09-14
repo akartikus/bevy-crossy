@@ -1,53 +1,91 @@
 use bevy::prelude::*;
 
 use crate::{
-    config::{PLAYER_SPEED, WINDOW_HEIGHT, WINDOW_WIDTH},
+    config::{row_y, GOAL_Y, GRID_HALF_COLS, HOP_DURATION, SCALED_TILE},
     obstacles::Obstacle,
     state::GameState,
     Player,
 };
+
+/// Un saut en cours : le joueur glisse de `from` à `to` en `HOP_DURATION` secondes.
+///
+/// C'est un composant *temporaire* : on l'ajoute au début du saut et on le retire
+/// à la fin. Sa présence sert aussi de verrou : tant qu'il est là, on ignore
+/// les nouvelles touches.
+#[derive(Component)]
+pub struct Hop {
+    from: Vec3,
+    to: Vec3,
+    timer: Timer,
+}
 
 pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         // Le mouvement ne tourne que pendant la partie : en game over, tout est figé.
+        // `chain` impose l'ordre : on lit les touches, puis on avance le saut.
         app.add_systems(
             Update,
-            (character_movement, obstacle_movement).run_if(in_state(GameState::Playing)),
+            (
+                (player_input, player_hop).chain(),
+                obstacle_movement,
+            )
+                .run_if(in_state(GameState::Playing)),
         );
     }
 }
 
-fn character_movement(
-    mut characters: Query<&mut Transform, With<Player>>,
+/// Démarre un saut d'une case si une touche est pressée et qu'aucun saut n'est en cours.
+fn player_input(
+    mut commands: Commands,
+    // `Without<Hop>` : ne concerne que le joueur qui ne saute pas déjà.
+    player: Query<(Entity, &Transform), (With<Player>, Without<Hop>)>,
     input: Res<ButtonInput<KeyCode>>,
+) {
+    let direction = if input.pressed(KeyCode::KeyW) {
+        Vec2::Y
+    } else if input.pressed(KeyCode::KeyS) {
+        Vec2::NEG_Y
+    } else if input.pressed(KeyCode::KeyD) {
+        Vec2::X
+    } else if input.pressed(KeyCode::KeyA) {
+        Vec2::NEG_X
+    } else {
+        return;
+    };
+
+    for (entity, transform) in &player {
+        let from = transform.translation;
+        let mut to = from + (direction * SCALED_TILE).extend(0.);
+        // Reste dans la grille : on bloque le saut aux bords.
+        let max_x = GRID_HALF_COLS as f32 * SCALED_TILE;
+        to.x = to.x.clamp(-max_x, max_x);
+        to.y = to.y.clamp(row_y(0), GOAL_Y);
+
+        if to != from {
+            commands.entity(entity).insert(Hop {
+                from,
+                to,
+                timer: Timer::from_seconds(HOP_DURATION, TimerMode::Once),
+            });
+        }
+    }
+}
+
+/// Fait avancer les sauts en cours et les termine.
+fn player_hop(
+    mut commands: Commands,
+    mut player: Query<(Entity, &mut Transform, &mut Hop)>,
     time: Res<Time>,
 ) {
-    // On construit un vecteur de direction à partir des touches...
-    let mut direction = Vec2::ZERO;
-    if input.pressed(KeyCode::KeyW) {
-        direction.y += 1.;
-    }
-    if input.pressed(KeyCode::KeyS) {
-        direction.y -= 1.;
-    }
-    if input.pressed(KeyCode::KeyD) {
-        direction.x += 1.;
-    }
-    if input.pressed(KeyCode::KeyA) {
-        direction.x -= 1.;
-    }
-
-    // ... qu'on normalise (longueur 1) pour que la diagonale ne soit pas
-    // plus rapide. `normalize_or_zero` évite la division par 0 à l'arrêt.
-    let movement = direction.normalize_or_zero() * PLAYER_SPEED * time.delta_seconds();
-
-    for mut transform in &mut characters {
-        transform.translation.x = (transform.translation.x + movement.x)
-            .clamp(-WINDOW_WIDTH / 2., WINDOW_WIDTH / 2.);
-        transform.translation.y = (transform.translation.y + movement.y)
-            .clamp(-WINDOW_HEIGHT / 2., WINDOW_HEIGHT / 2.);
+    for (entity, mut transform, mut hop) in &mut player {
+        hop.timer.tick(time.delta());
+        // `fraction` va de 0 à 1 ; `lerp` interpole linéairement entre deux points.
+        transform.translation = hop.from.lerp(hop.to, hop.timer.fraction());
+        if hop.timer.finished() {
+            commands.entity(entity).remove::<Hop>();
+        }
     }
 }
 

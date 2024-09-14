@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     config::{GOAL_Y, PLAYER_START},
+    movement::Hop,
     state::GameState,
     Player,
 };
@@ -50,9 +51,14 @@ fn spawn_score_ui(mut commands: Commands) {
 }
 
 /// Quand le joueur atteint le haut : +1 point et retour au départ.
-fn check_goal(mut score: ResMut<Score>, mut player: Query<&mut Transform, With<Player>>) {
+fn check_goal(
+    mut score: ResMut<Score>,
+    // `Without<Hop>` : on attend la fin du saut, sinon il écraserait la position remise au départ.
+    mut player: Query<&mut Transform, (With<Player>, Without<Hop>)>,
+) {
     for mut transform in &mut player {
-        if transform.translation.y >= GOAL_Y {
+        // Petite tolérance : l'interpolation du saut peut laisser un écart d'arrondi.
+        if transform.translation.y >= GOAL_Y - 1. {
             score.0 += 1;
             transform.translation = PLAYER_START;
         }
