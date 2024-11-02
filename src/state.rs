@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{config::PLAYER_START, movement::Hop, obstacles::Obstacle, score::Score, Player};
+use crate::{config::PLAYER_START, movement::Hop, obstacles::Obstacle, score::{update_high_score, HighScore, Score}, Player};
 
 /// Les états du jeu. Bevy garde l'état courant dans une ressource et permet de
 /// n'exécuter certains systèmes que dans un état donné (`run_if(in_state(..))`).
@@ -21,7 +21,11 @@ impl Plugin for GameStatePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
             // `OnEnter` / `OnExit` : exécutés une seule fois, au changement d'état.
-            .add_systems(OnEnter(GameState::GameOver), show_game_over)
+            .add_systems(
+                OnEnter(GameState::GameOver),
+                // Le record doit être à jour avant d'afficher l'écran de fin.
+                show_game_over.after(update_high_score),
+            )
             .add_systems(OnExit(GameState::GameOver), reset_game)
             .add_systems(
                 Update,
@@ -30,7 +34,7 @@ impl Plugin for GameStatePlugin {
     }
 }
 
-fn show_game_over(mut commands: Commands, score: Res<Score>) {
+fn show_game_over(mut commands: Commands, score: Res<Score>, high_score: Res<HighScore>) {
     // Un nœud plein écran qui centre son contenu, avec le texte en enfant.
     commands
         .spawn((
@@ -49,7 +53,10 @@ fn show_game_over(mut commands: Commands, score: Res<Score>) {
         .with_children(|parent| {
             parent.spawn(
                 TextBundle::from_section(
-                    format!("Game Over\nScore : {}\nAppuie sur R pour rejouer", score.0),
+                    format!(
+                        "Game Over\nScore : {}\nMeilleur : {}\nAppuie sur R pour rejouer",
+                        score.0, high_score.0
+                    ),
                     TextStyle {
                         font_size: 40.,
                         color: Color::WHITE,
