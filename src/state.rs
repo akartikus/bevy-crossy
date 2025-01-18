@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{config::PLAYER_START, movement::Hop, obstacles::Obstacle, score::{update_high_score, HighScore, Score}, Player};
+use crate::{config::PLAYER_START, events::PlayerHit, movement::Hop, obstacles::Obstacle, score::{update_high_score, HighScore, Score}, Player};
 
 /// Les états du jeu. Bevy garde l'état courant dans une ressource et permet de
 /// n'exécuter certains systèmes que dans un état donné (`run_if(in_state(..))`).
@@ -29,7 +29,10 @@ impl Plugin for GameStatePlugin {
             .add_systems(OnExit(GameState::GameOver), reset_game)
             .add_systems(
                 Update,
-                restart_on_key.run_if(in_state(GameState::GameOver)),
+                (
+                    game_over_on_hit.run_if(in_state(GameState::Playing)),
+                    restart_on_key.run_if(in_state(GameState::GameOver)),
+                ),
             );
     }
 }
@@ -66,6 +69,17 @@ fn show_game_over(mut commands: Commands, score: Res<Score>, high_score: Res<Hig
                 .with_text_justify(JustifyText::Center),
             );
         });
+}
+
+/// Réagit à la collision : passe en game over.
+fn game_over_on_hit(
+    mut hit_events: EventReader<PlayerHit>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    // `read().next()` : au moins un événement est arrivé.
+    if hit_events.read().next().is_some() {
+        next_state.set(GameState::GameOver);
+    }
 }
 
 fn restart_on_key(input: Res<ButtonInput<KeyCode>>, mut next_state: ResMut<NextState<GameState>>) {

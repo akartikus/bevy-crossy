@@ -1,6 +1,7 @@
 use assets::{GameAssets, GameAssetsPlugin};
 use bevy::{prelude::*, window::WindowResolution};
 use collision::{Collider, CollisionPlugin};
+use events::EventsPlugin;
 use config::{PLAYER_HALF_SIZE, PLAYER_START, SCALE, WINDOW_HEIGHT, WINDOW_WIDTH};
 use movement::MovementPlugin;
 use obstacles::ObstaclesPlugin;
@@ -10,6 +11,7 @@ use state::GameStatePlugin;
 mod assets;
 mod collision;
 mod config;
+mod events;
 mod movement;
 mod obstacles;
 mod score;
@@ -41,6 +43,7 @@ fn main() {
         )
         .add_plugins((
             GameAssetsPlugin,
+            EventsPlugin,
             GameStatePlugin,
             MovementPlugin,
             ObstaclesPlugin,

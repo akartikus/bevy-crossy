@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     config::{GOAL_Y, PLAYER_START},
+    events::GoalReached,
     movement::Hop,
     state::GameState,
     Player,
@@ -30,6 +31,8 @@ impl Plugin for ScorePlugin {
                 Update,
                 (
                     check_goal.run_if(in_state(GameState::Playing)),
+                    // `add_points` doit voir l'événement envoyé par `check_goal`.
+                    add_points.after(check_goal),
                     update_score_text,
                 ),
             );
@@ -58,16 +61,24 @@ fn spawn_score_ui(mut commands: Commands) {
 
 /// Quand le joueur atteint le haut : +1 point et retour au départ.
 fn check_goal(
-    mut score: ResMut<Score>,
+    mut goal_events: EventWriter<GoalReached>,
     // `Without<Hop>` : on attend la fin du saut, sinon il écraserait la position remise au départ.
     mut player: Query<&mut Transform, (With<Player>, Without<Hop>)>,
 ) {
     for mut transform in &mut player {
         // Petite tolérance : l'interpolation du saut peut laisser un écart d'arrondi.
         if transform.translation.y >= GOAL_Y - 1. {
-            score.0 += 1;
+            goal_events.send(GoalReached);
             transform.translation = PLAYER_START;
         }
+    }
+}
+
+/// +1 point par événement `GoalReached` reçu.
+fn add_points(mut goal_events: EventReader<GoalReached>, mut score: ResMut<Score>) {
+    // `read` parcourt les événements non encore lus par ce système.
+    for _ in goal_events.read() {
+        score.0 += 1;
     }
 }
 
