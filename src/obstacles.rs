@@ -10,6 +10,7 @@ use crate::{
         lane_y, LANES, LANE_SPAWN_RANGE, LANE_SPEED_RANGE, OBSTACLE_HALF_SIZE, SCALE, SCALED_TILE,
         TILE_SIZE, WINDOW_WIDTH,
     },
+    score::Score,
     state::GameState,
 };
 
@@ -82,12 +83,16 @@ fn spawn_obstacles(
     mut lanes: Query<(&mut Lane, &Transform)>,
     time: Res<Time>,
     assets: Res<GameAssets>,
+    score: Res<Score>,
 ) {
+    // Le temps s'écoule plus vite pour les minuteurs quand la difficulté monte :
+    // les obstacles apparaissent plus souvent, en phase avec leur vitesse.
+    let scaled_delta = time.delta().mul_f32(score.speed_factor());
     let corners = square_corners(TILE_SIZE);
     let mut rng = rand::thread_rng();
 
     for (mut lane, lane_transform) in &mut lanes {
-        lane.spawn_timer.tick(time.delta());
+        lane.spawn_timer.tick(scaled_delta);
         if !lane.spawn_timer.finished() {
             continue;
         }

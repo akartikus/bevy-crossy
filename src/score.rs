@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    config::{GOAL_Y, PLAYER_START},
+    config::{GOAL_Y, MAX_SPEED_FACTOR, PLAYER_START, SPEED_FACTOR_PER_POINT},
     events::GoalReached,
     movement::Hop,
     state::GameState,
@@ -10,6 +10,16 @@ use crate::{
 
 #[derive(Resource, Default)]
 pub struct Score(pub u32);
+
+impl Score {
+    /// Multiplicateur de vitesse du trafic : 1.0 au départ, puis +10 % par point, plafonné.
+    ///
+    /// Les obstacles vont plus vite *et* apparaissent plus souvent (voir
+    /// `spawn_obstacles`) : l'espacement entre deux obstacles reste donc le même.
+    pub fn speed_factor(&self) -> f32 {
+        (1. + SPEED_FACTOR_PER_POINT * self.0 as f32).min(MAX_SPEED_FACTOR)
+    }
+}
 
 /// Meilleur score de la session. Il survit aux parties (seul `Score` est remis à zéro).
 #[derive(Resource, Default)]

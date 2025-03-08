@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     config::{row_y, GOAL_Y, GRID_HALF_COLS, HOP_DURATION, SCALED_TILE},
     obstacles::Obstacle,
+    score::Score,
     state::GameState,
     Player,
 };
@@ -89,8 +90,13 @@ fn player_hop(
     }
 }
 
-fn obstacle_movement(mut obstacles: Query<(&mut Transform, &Obstacle)>, time: Res<Time>) {
+fn obstacle_movement(
+    mut obstacles: Query<(&mut Transform, &Obstacle)>,
+    time: Res<Time>,
+    score: Res<Score>,
+) {
+    let speed_factor = score.speed_factor();
     for (mut transform, obstacle) in &mut obstacles {
-        transform.translation.x += obstacle.velocity * time.delta_seconds();
+        transform.translation.x += obstacle.velocity * speed_factor * time.delta_seconds();
     }
 }

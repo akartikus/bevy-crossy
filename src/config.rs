@@ -56,3 +56,10 @@ pub const OBSTACLE_HALF_SIZE: Vec2 = Vec2::splat(16. * SCALE);
 pub const HOP_DURATION: f32 = 0.12;
 /// Nombre de colonnes de part et d'autre de la colonne centrale (21 colonnes au total).
 pub const GRID_HALF_COLS: i32 = 10;
+
+// --- Difficulté -------------------------------------------------------------
+
+/// Accélération du trafic par point marqué (+10 % de la vitesse de base).
+pub const SPEED_FACTOR_PER_POINT: f32 = 0.1;
+/// Le trafic ne dépasse jamais cette multiplication de la vitesse de base.
+pub const MAX_SPEED_FACTOR: f32 = 2.5;
