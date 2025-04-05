@@ -3,7 +3,7 @@
 Projet éducatif pour maîtriser **Rust** et **Bevy 0.13** en faisant un clone de Crossy Road.
 Ce fichier sert de feuille de route (ce qui est fait / à faire) et de support pour comprendre le code.
 
-Lancer le jeu : `cargo run`. Contrôles : **WASD** pour bouger, **R** pour rejouer après un game over.
+Lancer le jeu : `cargo run`. Contrôles : **WASD** pour sauter d'une case, **R** pour rejouer après un game over.
 
 ---
 
@@ -34,10 +34,11 @@ Un système déclare ce dont il a besoin dans ses paramètres, et Bevy les fourn
 | `src/main.rs` | Point d'entrée : fenêtre, plugins, spawn de la caméra et du joueur |
 | `src/config.rs` | Constantes partagées (tailles, vitesses, positions) |
 | `src/assets.rs` | `GameAssets` : texture et atlas chargés une seule fois |
-| `src/movement.rs` | Déplacement du joueur (WASD) et des obstacles |
-| `src/obstacles.rs` | Apparition et suppression des obstacles |
+| `src/movement.rs` | Sauts du joueur (WASD) case par case et déplacement des obstacles |
+| `src/obstacles.rs` | Voies de circulation, apparition et suppression des obstacles |
 | `src/collision.rs` | `Collider` et détection de collision joueur / obstacle |
-| `src/score.rs` | Score, but à atteindre, affichage du score |
+| `src/score.rs` | Score, meilleur score, difficulté, but à atteindre, affichage |
+| `src/events.rs` | Événements `PlayerHit` et `GoalReached` |
 | `src/state.rs` | `GameState`, écran de game over, redémarrage |
 
 ---
@@ -79,23 +80,44 @@ Un système déclare ce dont il a besoin dans ses paramètres, et Bevy les fourn
   - Le composant marqueur `GameOverUi` permet de retrouver et supprimer l'écran de fin.
 - [x] Le joueur démarre maintenant en bas de l'écran (avant, il était dans une voie d'obstacles).
 
-### Étape 3 : design du jeu (à faire)
-- [ ] **Système de voies (`Lane`)** : chaque voie a sa position `y`, sa direction, sa vitesse et sa fréquence d'apparition. Cela remplace le `y = 75` fixe et la logique confuse de `randomize_translation`.
-- [ ] **Déplacement case par case** : un appui = un saut d'une case, avec une interpolation fluide (le vrai gameplay de Crossy Road).
-- [ ] **Meilleur score** (`HighScore`) affiché à côté du score.
+### Étape 3 : design du jeu (fait)
+- [x] **Système de voies** (`obstacles.rs`, `config.rs`)
+  - L'écran est une grille de lignes de 32 px (`row_y`). Ligne 0 : départ. Lignes 13 et 14 : arrivée. Les 12 lignes du milieu forment 6 voies de 2 lignes (`lane_y`), car un obstacle fait 2x2 tuiles.
+  - Chaque voie est une entité avec un composant `Lane` : direction (alternée), vitesse (aléatoire) et minuteur de spawn. Après chaque obstacle, un nouveau délai aléatoire est tiré : le trafic est irrégulier.
+  - `Obstacle` ne contient plus qu'une `velocity` signée (+ vers la droite, - vers la gauche).
+  - Les voies ne se chevauchent plus, et le hack sur `z` a disparu.
+  - *Concepts : composant de configuration (`Lane`), entités sans sprite, `Timer` à durée variable.*
+- [x] **Déplacement case par case** (`movement.rs`)
+  - Une touche démarre un saut d'une case : on ajoute le composant `Hop { from, to, timer }`.
+  - Pendant le saut, `player_hop` interpole la position (`Vec3::lerp` avec `timer.fraction()`), puis retire `Hop`.
+  - `Query<..., Without<Hop>>` sert de verrou : pas de nouveau saut tant que le précédent n'est pas fini. Tenir la touche enchaîne les sauts.
+  - `(player_input, player_hop).chain()` impose l'ordre d'exécution.
+  - Le goal et le reset attendent la fin du saut (sinon `Hop` écraserait la position remise au départ).
+  - *Concepts : composant temporaire comme machine à états, `Without<T>`, `chain`, interpolation.*
+- [x] **Meilleur score** (`score.rs`)
+  - `HighScore` est une `Resource` qui survit aux parties. Mise à jour dans `OnEnter(GameOver)` par `update_high_score`.
+  - `show_game_over.after(update_high_score)` garantit que le record est à jour avant l'affichage.
+  - Limite : le record n'est pas sauvegardé sur disque, il est perdu à la fermeture du jeu.
 
-### Étape 4 : bonus (à faire)
-- [ ] Événements Bevy (`Event`, `EventWriter`, `EventReader`) pour la collision et le score
-- [ ] Animation du sprite avec l'atlas
-- [ ] Sons (`AudioBundle`)
-- [ ] Difficulté progressive (vitesse et fréquence qui augmentent avec le score)
-- [ ] Caméra qui suit le joueur
-- [ ] Migration vers une version récente de Bevy (l'API a beaucoup changé depuis la 0.13)
+### Étape 4 : bonus
+- [x] **Événements** (`events.rs`)
+  - `PlayerHit` (envoyé par `check_collisions`) et `GoalReached` (envoyé par `check_goal`).
+  - `state.rs` écoute `PlayerHit` pour passer en game over, `score.rs` écoute `GoalReached` pour ajouter un point.
+  - L'émetteur ne connaît pas les récepteurs : on peut en ajouter (sons, effets) sans toucher à la collision.
+  - *Concepts : `#[derive(Event)]`, `add_event`, `EventWriter::send`, `EventReader::read`.*
+- [x] **Difficulté progressive**
+  - `Score::speed_factor()` vaut 1.0 au départ, +0.1 par point, plafonné à 2.5 (`config.rs`).
+  - Les obstacles vont plus vite, et les minuteurs de spawn avancent plus vite aussi (`delta.mul_f32(facteur)`), donc l'espacement entre obstacles reste constant.
+- [ ] **Animation du sprite** : non fait. Aucune frame d'animation du joueur n'est clairement identifiable dans la tilemap, et je ne peux pas lancer le jeu pour vérifier. Pour le faire : choisir les indices des frames, puis un composant `AnimationTimer` qui change `TextureAtlas.index`.
+- [ ] **Sons** : non fait. Il n'y a aucun fichier audio dans `assets/`. Pour le faire : ajouter des `.ogg` dans `assets/`, puis jouer un `AudioBundle` en réaction à `PlayerHit` et `GoalReached`.
+- [ ] **Caméra qui suit le joueur** : non fait. Le jeu tient sur un seul écran fixe : il faudrait d'abord un monde plus grand (génération de voies à l'infini), ce qui change le design.
+- [ ] **Migration vers une version récente de Bevy** : non faite. Gros chantier (l'API des bundles, de l'UI et des états a changé), à faire à part et avec des tests en lançant le jeu.
 
 ---
 
 ## Pistes d'amélioration repérées (hors étapes)
 
-- Les voies actuelles se chevauchent en `y` (obstacles à 75 et 107 : 64 px de haut chacun). Le système de voies de l'étape 3 règle ce défaut.
-- L'ordre d'exécution des systèmes dans `Update` n'est pas garanti. Par exemple, la collision peut être testée avant ou après le mouvement de la même frame. Plus tard, on pourra utiliser `.chain()` ou `.after(...)`.
+- Sauvegarder le meilleur score sur disque (fichier JSON dans le dossier de l'utilisateur).
 - Les index de tuiles (`27 * 16 + 15`...) sont en dur. Un petit module de constantes d'atlas serait plus lisible.
+- Les tailles des boîtes de collision (`config.rs`) sont des estimations à ajuster en jouant.
+- Un écran de titre (nouvel état `Menu`) serait un bon exercice sur les états.
