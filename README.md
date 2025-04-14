@@ -38,4 +38,4 @@ Pas de sons, pas d'animation du joueur, et le meilleur score n'est pas sauvegard
 
 ## Crédits
 
-Les sprites viennent d'une tilemap 16x16 placée dans `assets/tilemap.png`.
+Les sprites viennent de [Kenney](https://kenney.nl) (tilemap 16x16 dans `assets/tilemap.png`). Ses assets sont libres de droits (CC0), merci à lui.
