@@ -14,6 +14,8 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+# Pas d'infos de debug pour les dépendances : binaires beaucoup plus légers.
+debug = false
 
 #[toolchain]
 #channel = "nightly"
