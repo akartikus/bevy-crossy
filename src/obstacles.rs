@@ -57,7 +57,7 @@ impl Plugin for ObstaclesPlugin {
 
 /// Crée les voies : une entité par voie, avec une direction alternée.
 fn setup_lanes(mut commands: Commands) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for lane in 0..LANES {
         // Voies paires vers la droite, impaires vers la gauche.
         let direction = if lane % 2 == 0 { 1. } else { -1. };
@@ -67,7 +67,7 @@ fn setup_lanes(mut commands: Commands) {
             Transform::from_xyz(0., lane_y(lane), 0.),
             Lane {
                 direction,
-                speed: rng.gen_range(LANE_SPEED_RANGE.0..LANE_SPEED_RANGE.1),
+                speed: rng.random_range(LANE_SPEED_RANGE.0..LANE_SPEED_RANGE.1),
                 spawn_timer: Timer::from_seconds(random_delay(&mut rng), TimerMode::Once),
             },
         ));
@@ -75,7 +75,7 @@ fn setup_lanes(mut commands: Commands) {
 }
 
 fn random_delay(rng: &mut impl Rng) -> f32 {
-    rng.gen_range(LANE_SPAWN_RANGE.0..LANE_SPAWN_RANGE.1)
+    rng.random_range(LANE_SPAWN_RANGE.0..LANE_SPAWN_RANGE.1)
 }
 
 fn spawn_obstacles(
@@ -89,11 +89,11 @@ fn spawn_obstacles(
     // les obstacles apparaissent plus souvent, en phase avec leur vitesse.
     let scaled_delta = time.delta().mul_f32(score.speed_factor());
     let corners = square_corners(TILE_SIZE);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (mut lane, lane_transform) in &mut lanes {
         lane.spawn_timer.tick(scaled_delta);
-        if !lane.spawn_timer.finished() {
+        if !lane.spawn_timer.is_finished() {
             continue;
         }
 
@@ -109,10 +109,9 @@ fn spawn_obstacles(
         // Leur transform est relatif au parent : déplacer le parent les déplace tous.
         commands
             .spawn((
-                SpatialBundle {
-                    transform: Transform::from_translation(translation),
-                    ..default()
-                },
+                // `Visibility` est nécessaire sur le parent pour que ses enfants s'affichent.
+                Transform::from_translation(translation),
+                Visibility::default(),
                 Name::new("Obstacle"),
                 Obstacle {
                     velocity: lane.direction * lane.speed,
@@ -123,19 +122,20 @@ fn spawn_obstacles(
             ))
             .with_children(|parent| {
                 for (corner, tile_index) in corners.iter().zip(OBSTACLE_TILES) {
-                    parent.spawn(SpriteSheetBundle {
-                        texture: assets.texture.clone(),
-                        atlas: TextureAtlas {
-                            layout: assets.layout.clone(),
-                            index: tile_index,
-                        },
-                        transform: Transform {
+                    parent.spawn((
+                        Sprite::from_atlas_image(
+                            assets.texture.clone(),
+                            TextureAtlas {
+                                layout: assets.layout.clone(),
+                                index: tile_index,
+                            },
+                        ),
+                        Transform {
                             translation: *corner * SCALE,
                             scale: Vec3::splat(SCALE),
                             ..default()
                         },
-                        ..default()
-                    });
+                    ));
                 }
             });
     }
@@ -158,8 +158,8 @@ fn square_corners(tile_size: f32) -> [Vec3; 4] {
 fn despawn_obstacles(mut commands: Commands, obstacles: Query<(&Transform, &Obstacle, Entity)>) {
     for (transform, obstacle, entity) in &obstacles {
         if transform.translation.x * obstacle.velocity.signum() > EDGE {
-            // `despawn_recursive` supprime aussi les tuiles enfants.
-            commands.entity(entity).despawn_recursive();
+            // `despawn` supprime aussi les tuiles enfants (récursif par défaut depuis Bevy 0.16).
+            commands.entity(entity).despawn();
         }
     }
 }

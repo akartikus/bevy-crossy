@@ -1,4 +1,4 @@
-use bevy::{math::bounding::*, prelude::*};
+use bevy::{prelude::*, shape::{Aabb2d, IntersectsVolume}};
 
 use crate::{events::PlayerHit, obstacles::Obstacle, state::GameState, Player};
 
@@ -31,14 +31,14 @@ impl Plugin for CollisionPlugin {
 fn check_collisions(
     player: Query<(&GlobalTransform, &Collider), With<Player>>,
     obstacles: Query<(&GlobalTransform, &Collider), With<Obstacle>>,
-    mut hit_events: EventWriter<PlayerHit>,
+    mut hit_events: MessageWriter<PlayerHit>,
 ) {
     for (player_transform, player_collider) in &player {
         let player_box = player_collider.aabb(player_transform);
         for (obstacle_transform, obstacle_collider) in &obstacles {
             if player_box.intersects(&obstacle_collider.aabb(obstacle_transform)) {
                 // On signale simplement la touche : c'est à d'autres systèmes de réagir.
-                hit_events.send(PlayerHit);
+                hit_events.write(PlayerHit);
                 return;
             }
         }

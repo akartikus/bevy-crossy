@@ -22,7 +22,8 @@ struct Player;
 
 #[derive(Bundle)]
 struct PlayerBundle {
-    sprite: SpriteSheetBundle,
+    sprite: Sprite,
+    transform: Transform,
     player: Player,
     collider: Collider,
 }
@@ -33,7 +34,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        resolution: WindowResolution::new(WINDOW_WIDTH, WINDOW_HEIGHT),
+                        resolution: WindowResolution::new(WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
                         title: String::from("Bevy crossy road"),
                         ..default()
                     }),
@@ -55,20 +56,20 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, assets: Res<GameAssets>) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     commands.spawn(PlayerBundle {
-        sprite: SpriteSheetBundle {
-            texture: assets.texture.clone(),
-            atlas: TextureAtlas {
+        // Un `Sprite` combine l'image et, ici, la tuile choisie dans l'atlas.
+        sprite: Sprite::from_atlas_image(
+            assets.texture.clone(),
+            TextureAtlas {
                 layout: assets.layout.clone(),
                 index: 24, // index de la tuile du joueur dans l'atlas
             },
-            transform: Transform {
-                translation: PLAYER_START,
-                scale: Vec3::splat(SCALE),
-                ..default()
-            },
+        ),
+        transform: Transform {
+            translation: PLAYER_START,
+            scale: Vec3::splat(SCALE),
             ..default()
         },
         player: Player,

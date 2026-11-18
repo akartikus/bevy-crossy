@@ -51,41 +51,36 @@ impl Plugin for ScorePlugin {
 
 fn spawn_score_ui(mut commands: Commands) {
     commands.spawn((
-        TextBundle::from_section(
-            "Score : 0   Meilleur : 0",
-            TextStyle {
-                font_size: 30.,
-                color: Color::WHITE,
-                ..default()
-            },
-        )
-        .with_style(Style {
+        Text::new("Score : 0   Meilleur : 0"),
+        TextFont::from_font_size(30.),
+        TextColor(Color::WHITE),
+        Node {
             position_type: PositionType::Absolute,
             top: Val::Px(8.),
             left: Val::Px(8.),
             ..default()
-        }),
+        },
         ScoreText,
     ));
 }
 
 /// Quand le joueur atteint le haut : +1 point et retour au départ.
 fn check_goal(
-    mut goal_events: EventWriter<GoalReached>,
+    mut goal_events: MessageWriter<GoalReached>,
     // `Without<Hop>` : on attend la fin du saut, sinon il écraserait la position remise au départ.
     mut player: Query<&mut Transform, (With<Player>, Without<Hop>)>,
 ) {
     for mut transform in &mut player {
         // Petite tolérance : l'interpolation du saut peut laisser un écart d'arrondi.
         if transform.translation.y >= GOAL_Y - 1. {
-            goal_events.send(GoalReached);
+            goal_events.write(GoalReached);
             transform.translation = PLAYER_START;
         }
     }
 }
 
 /// +1 point par événement `GoalReached` reçu.
-fn add_points(mut goal_events: EventReader<GoalReached>, mut score: ResMut<Score>) {
+fn add_points(mut goal_events: MessageReader<GoalReached>, mut score: ResMut<Score>) {
     // `read` parcourt les événements non encore lus par ce système.
     for _ in goal_events.read() {
         score.0 += 1;
@@ -109,6 +104,6 @@ fn update_score_text(
         return;
     }
     for mut text in &mut text {
-        text.sections[0].value = format!("Score : {}   Meilleur : {}", score.0, high_score.0);
+        text.0 = format!("Score : {}   Meilleur : {}", score.0, high_score.0);
     }
 }

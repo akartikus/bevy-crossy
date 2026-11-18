@@ -41,39 +41,31 @@ fn show_game_over(mut commands: Commands, score: Res<Score>, high_score: Res<Hig
     // Un nœud plein écran qui centre son contenu, avec le texte en enfant.
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
                 ..default()
             },
             GameOverUi,
         ))
         .with_children(|parent| {
-            parent.spawn(
-                TextBundle::from_section(
-                    format!(
-                        "Game Over\nScore : {}\nMeilleur : {}\nAppuie sur R pour rejouer",
-                        score.0, high_score.0
-                    ),
-                    TextStyle {
-                        font_size: 40.,
-                        color: Color::WHITE,
-                        ..default()
-                    },
-                )
-                .with_text_justify(JustifyText::Center),
-            );
+            parent.spawn((
+                Text::new(format!(
+                    "Game Over\nScore : {}\nMeilleur : {}\nAppuie sur R pour rejouer",
+                    score.0, high_score.0
+                )),
+                TextFont::from_font_size(40.),
+                TextColor(Color::WHITE),
+                TextLayout::justify(Justify::Center),
+            ));
         });
 }
 
 /// Réagit à la collision : passe en game over.
 fn game_over_on_hit(
-    mut hit_events: EventReader<PlayerHit>,
+    mut hit_events: MessageReader<PlayerHit>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     // `read().next()` : au moins un événement est arrivé.
@@ -105,9 +97,9 @@ fn reset_game(
         commands.entity(entity).remove::<Hop>();
     }
     for entity in &obstacles {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
     for entity in &ui {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }

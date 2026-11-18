@@ -84,7 +84,7 @@ fn player_hop(
         hop.timer.tick(time.delta());
         // `fraction` va de 0 à 1 ; `lerp` interpole linéairement entre deux points.
         transform.translation = hop.from.lerp(hop.to, hop.timer.fraction());
-        if hop.timer.finished() {
+        if hop.timer.is_finished() {
             commands.entity(entity).remove::<Hop>();
         }
     }
@@ -97,6 +97,6 @@ fn obstacle_movement(
 ) {
     let speed_factor = score.speed_factor();
     for (mut transform, obstacle) in &mut obstacles {
-        transform.translation.x += obstacle.velocity * speed_factor * time.delta_seconds();
+        transform.translation.x += obstacle.velocity * speed_factor * time.delta_secs();
     }
 }

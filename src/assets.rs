@@ -33,10 +33,10 @@ fn load_assets(
 
     // Grille de 27 colonnes x 18 lignes de tuiles 16x16, séparées par 1px.
     let layout = layouts.add(TextureAtlasLayout::from_grid(
-        Vec2::splat(crate::config::TILE_SIZE),
+        UVec2::splat(crate::config::TILE_SIZE as u32),
         27,
         18,
-        Some(Vec2::splat(1.)),
+        Some(UVec2::splat(1)),
         None,
     ));
 
