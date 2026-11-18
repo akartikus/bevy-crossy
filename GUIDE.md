@@ -1,6 +1,6 @@
 # Guide du projet : Bevy Crossy
 
-Projet éducatif pour maîtriser **Rust** et **Bevy 0.13** en faisant un clone de Crossy Road.
+Projet éducatif pour maîtriser **Rust** et **Bevy 0.20** en faisant un clone de Crossy Road.
 Ce fichier sert de feuille de route (ce qui est fait / à faire) et de support pour comprendre le code.
 
 Lancer le jeu : `cargo run`. Contrôles : **WASD** pour sauter d'une case, **R** pour rejouer après un game over.
@@ -76,7 +76,7 @@ Un système déclare ce dont il a besoin dans ses paramètres, et Bevy les fourn
   - `Score` est une `Resource`. Le texte n'est mis à jour que si `score.is_changed()`.
   - *Concepts : `init_resource`, `Default`, détection de changement.*
 - [x] **Interface (bevy_ui)** : texte du score en haut à gauche, écran de game over centré.
-  - `NodeBundle` est un conteneur avec `Style` (comme du CSS flexbox). `TextBundle` affiche du texte.
+  - `Node` est un conteneur avec des champs de style (comme du CSS flexbox). `Text`, `TextFont`, `TextColor` et `TextLayout` décrivent un texte.
   - Le composant marqueur `GameOverUi` permet de retrouver et supprimer l'écran de fin.
 - [x] Le joueur démarre maintenant en bas de l'écran (avant, il était dans une voie d'obstacles).
 
@@ -100,18 +100,46 @@ Un système déclare ce dont il a besoin dans ses paramètres, et Bevy les fourn
   - Limite : le record n'est pas sauvegardé sur disque, il est perdu à la fermeture du jeu.
 
 ### Étape 4 : bonus
-- [x] **Événements** (`events.rs`)
+- [x] **Messages** (`events.rs`, appelés `Event` avant la migration vers Bevy 0.20)
   - `PlayerHit` (envoyé par `check_collisions`) et `GoalReached` (envoyé par `check_goal`).
   - `state.rs` écoute `PlayerHit` pour passer en game over, `score.rs` écoute `GoalReached` pour ajouter un point.
   - L'émetteur ne connaît pas les récepteurs : on peut en ajouter (sons, effets) sans toucher à la collision.
-  - *Concepts : `#[derive(Event)]`, `add_event`, `EventWriter::send`, `EventReader::read`.*
+  - *Concepts : `#[derive(Message)]`, `add_message`, `MessageWriter::write`, `MessageReader::read`.*
 - [x] **Difficulté progressive**
   - `Score::speed_factor()` vaut 1.0 au départ, +0.1 par point, plafonné à 2.5 (`config.rs`).
   - Les obstacles vont plus vite, et les minuteurs de spawn avancent plus vite aussi (`delta.mul_f32(facteur)`), donc l'espacement entre obstacles reste constant.
 - [ ] **Animation du sprite** : non fait. Aucune frame d'animation du joueur n'est clairement identifiable dans la tilemap, et je ne peux pas lancer le jeu pour vérifier. Pour le faire : choisir les indices des frames, puis un composant `AnimationTimer` qui change `TextureAtlas.index`.
-- [ ] **Sons** : non fait. Il n'y a aucun fichier audio dans `assets/`. Pour le faire : ajouter des `.ogg` dans `assets/`, puis jouer un `AudioBundle` en réaction à `PlayerHit` et `GoalReached`.
+- [ ] **Sons** : non fait. Il n'y a aucun fichier audio dans `assets/`. Pour le faire : ajouter des `.ogg` dans `assets/`, puis jouer un `AudioPlayer` en réaction à `PlayerHit` et `GoalReached`.
 - [ ] **Caméra qui suit le joueur** : non fait. Le jeu tient sur un seul écran fixe : il faudrait d'abord un monde plus grand (génération de voies à l'infini), ce qui change le design.
-- [ ] **Migration vers une version récente de Bevy** : non faite. Gros chantier (l'API des bundles, de l'UI et des états a changé), à faire à part et avec des tests en lançant le jeu.
+- [x] **Migration vers Bevy 0.20** (et `rand` 0.10) : voir la section suivante.
+
+
+---
+
+## Migration vers Bevy 0.20
+
+Le projet est passé de Bevy 0.13 à 0.20 (et `rand` de 0.8 à 0.10). Les changements qui ont touché le code :
+
+| Avant (0.13) | Maintenant (0.20) |
+|---|---|
+| `Camera2dBundle::default()` | `Camera2d` (un composant, qui en ajoute d'autres tout seul) |
+| `SpriteSheetBundle { texture, atlas, transform }` | `Sprite::from_atlas_image(image, TextureAtlas { .. })` + `Transform` |
+| `SpatialBundle` | `Transform` + `Visibility` |
+| `NodeBundle { style: Style { .. } }` | `Node { .. }` |
+| `TextBundle::from_section(..)` | `Text::new(..)` + `TextFont` + `TextColor` |
+| `text.sections[0].value` | `text.0` |
+| `Event`, `EventWriter::send`, `EventReader` | `Message`, `MessageWriter::write`, `MessageReader` |
+| `despawn_recursive()` | `despawn()` (supprime aussi les enfants) |
+| `time.delta_seconds()` | `time.delta_secs()` |
+| `timer.finished()` | `timer.is_finished()` |
+| `bevy::math::bounding` | `bevy::shape` (`Aabb2d`, `IntersectsVolume`) |
+| `TextureAtlasLayout::from_grid(Vec2, ..)` | tailles en `UVec2` |
+| `WindowResolution::new(f32, f32)` | `WindowResolution::new(u32, u32)` |
+| `rand::thread_rng()`, `gen_range` | `rand::rng()`, `random_range` |
+
+Le gros changement d'idée : les bundles ont presque disparu au profit des **composants requis** (*required components*). Un `Sprite` demande automatiquement un `Transform` et une `Visibility`, un `Text` demande ses composants de mise en page, etc. On spawn donc un tuple de composants.
+
+Cette migration a été faite en suivant les erreurs du compilateur et le code source des crates, mais elle n'a pas été testée en lançant le jeu.
 
 ---
 

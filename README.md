@@ -1,6 +1,6 @@
 # bevy-crossy
 
-Un petit clone de Crossy Road fait avec Rust et Bevy 0.13. Je l'ai commencé pour apprendre Rust et Bevy, donc le code est plein de commentaires qui expliquent ce que je découvre en route.
+Un petit clone de Crossy Road fait avec Rust et Bevy 0.20. Je l'ai commencé pour apprendre Rust et Bevy, donc le code est plein de commentaires qui expliquent ce que je découvre en route.
 
 Le but : traverser la route sans se faire toucher. Chaque traversée rapporte un point, et plus le score monte, plus le trafic va vite.
 
